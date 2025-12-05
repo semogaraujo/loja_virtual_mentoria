@@ -1,7 +1,9 @@
 package br.mentoria.lojavirtual.model;
 
-import java.io.Serializable;
 import java.util.Objects;
+
+import org.jspecify.annotations.Nullable;
+import org.springframework.security.core.GrantedAuthority;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -12,18 +14,23 @@ import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name="categoria_produto")
-@SequenceGenerator(name="seq_categoria_produto", sequenceName = "seq_categoria_produto", allocationSize = 1, initialValue = 1)
-public class CategoriaProduto implements Serializable{
-	
+@Table(name = "acesso")
+@SequenceGenerator(name = "seq_acesso", sequenceName = "seq_acesso", initialValue = 1, allocationSize = 1)
+public class Acesso implements GrantedAuthority {
+
 	private static final long serialVersionUID = 1L;
-	
+
 	@Id
-	@GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "seq_categoria_produto")
+	@GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "seq_acesso")
 	private Long id;
-	
-	@Column(name = "nome_desc", nullable = false)
-	private String nameDesc;
+
+	@Column(nullable = false)
+	private String descricao; /* Acesso ex: ROLE_ADMIN OU ROLE_SECRETARIO */
+
+	@Override
+	public @Nullable String getAuthority() {
+		return this.descricao;
+	}
 
 	public Long getId() {
 		return id;
@@ -33,12 +40,12 @@ public class CategoriaProduto implements Serializable{
 		this.id = id;
 	}
 
-	public String getNameDesc() {
-		return nameDesc;
+	public String getDescricao() {
+		return descricao;
 	}
 
-	public void setNameDesc(String nameDesc) {
-		this.nameDesc = nameDesc;
+	public void setDescricao(String descricao) {
+		this.descricao = descricao;
 	}
 
 	@Override
@@ -54,11 +61,8 @@ public class CategoriaProduto implements Serializable{
 			return false;
 		if (getClass() != obj.getClass())
 			return false;
-		CategoriaProduto other = (CategoriaProduto) obj;
+		Acesso other = (Acesso) obj;
 		return Objects.equals(id, other.id);
 	}
-	
-	
-	
 
 }
