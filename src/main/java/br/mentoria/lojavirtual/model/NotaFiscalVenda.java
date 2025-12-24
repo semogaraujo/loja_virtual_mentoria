@@ -32,10 +32,10 @@ public class NotaFiscalVenda implements Serializable {
 
 	private String tipo;
 
-	@Column(columnDefinition = "text")
+	@Column(columnDefinition = "text", nullable = false)
 	private String xml;
 
-	@Column(columnDefinition = "text")
+	@Column(columnDefinition = "text", nullable = false)
 	private String pdf;
 
 	public Long getId() {
