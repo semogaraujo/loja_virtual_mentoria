@@ -6,7 +6,6 @@ import java.time.LocalDate;
 import java.util.Objects;
 
 import br.mentoria.lojavirtual.enums.StatusContaPagar;
-import br.mentoria.lojavirtual.enums.StatusContaReceber;
 import jakarta.persistence.Column;
 import jakarta.persistence.ConstraintMode;
 import jakarta.persistence.Entity;

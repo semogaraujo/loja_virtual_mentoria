@@ -2,7 +2,7 @@ package br.mentoria.lojavirtual.model;
 
 import java.util.Objects;
 
-import org.jspecify.annotations.Nullable;
+import org.springframework.lang.Nullable;
 import org.springframework.security.core.GrantedAuthority;
 
 import jakarta.persistence.Column;
