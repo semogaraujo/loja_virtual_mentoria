@@ -3,8 +3,11 @@ package br.mentoria.lojavirtual.model;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.ConstraintMode;
 import jakarta.persistence.Entity;
@@ -14,6 +17,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
@@ -54,10 +58,8 @@ public class VendaCompraLojaVirtual implements Serializable {
 	foreignKey = @ForeignKey(value = ConstraintMode.CONSTRAINT, name = "forma_pagamento_fk"))
 	private FormaPagamento formaPagamento;
 
-	@OneToOne
-	@JoinColumn(name = "nota_fiscal_venda_id", nullable = false, 
-	foreignKey = @ForeignKey(value = ConstraintMode.CONSTRAINT, name = "nota_fiscal_venda_fk"))
-	private NotaFiscalVenda notaFiscalVenda;
+	@OneToMany(mappedBy = "vendaCompraLojaVirtual", cascade = CascadeType.ALL, orphanRemoval = true	)
+	private List<NotaFiscalVenda> notasFiscais = new ArrayList<>();	
 
 	@ManyToOne
 	@JoinColumn(name = "cupom_desconto_id",
@@ -132,12 +134,12 @@ public class VendaCompraLojaVirtual implements Serializable {
 		this.formaPagamento = formaPagamento;
 	}
 
-	public NotaFiscalVenda getNotaFiscalVenda() {
-		return notaFiscalVenda;
+	public List<NotaFiscalVenda> getNotasFiscais() {
+		return notasFiscais;
 	}
-
-	public void setNotaFiscalVenda(NotaFiscalVenda notaFiscalVenda) {
-		this.notaFiscalVenda = notaFiscalVenda;
+	
+	public void setNotasFiscais(List<NotaFiscalVenda> notasFiscais) {
+		this.notasFiscais = notasFiscais;
 	}
 
 	public CupDesconto getCupDesc() {

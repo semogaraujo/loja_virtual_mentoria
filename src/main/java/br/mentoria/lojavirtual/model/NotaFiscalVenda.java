@@ -4,7 +4,6 @@ import java.io.Serializable;
 import java.util.Objects;
 
 import jakarta.persistence.Column;
-import jakarta.persistence.ConstraintMode;
 import jakarta.persistence.Entity;
 import jakarta.persistence.ForeignKey;
 import jakarta.persistence.GeneratedValue;
@@ -43,9 +42,9 @@ public class NotaFiscalVenda implements Serializable {
 	}
 
 	@OneToOne
-	@JoinColumn(name = "venda_compra_loja_virt_id", nullable = false, foreignKey = @ForeignKey(value = ConstraintMode.CONSTRAINT, name = "venda_compra_loja_virt_fk"))
+	@JoinColumn(name = "venda_compra_loja_virt_id", nullable = false, foreignKey = @ForeignKey(name = "venda_compra_loja_virt_fk"))
 	private VendaCompraLojaVirtual vendaCompraLojaVirtual;
-	
+
 	public void setId(Long id) {
 		this.id = id;
 	}
