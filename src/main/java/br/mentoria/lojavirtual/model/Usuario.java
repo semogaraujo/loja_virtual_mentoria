@@ -131,7 +131,5 @@ public class Usuario implements UserDetails {
 	public void setAcessos(List<Acesso> acessos) {
 		this.acessos = acessos;
 	}
-	
-	
 
 }

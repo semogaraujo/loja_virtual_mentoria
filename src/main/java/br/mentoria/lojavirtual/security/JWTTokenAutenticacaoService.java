@@ -1,15 +1,20 @@
 package br.mentoria.lojavirtual.security;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+
 import br.mentoria.lojavirtual.model.Usuario;
 import br.mentoria.lojavirtual.repository.UsuarioRepository;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
@@ -23,7 +28,7 @@ public class JWTTokenAutenticacaoService {
 
 	@Value("${jwt.secret}")
 	private String secret;
-	
+
 	private Key key;
 
 	private final UsuarioRepository usuarioRepository;
@@ -38,9 +43,8 @@ public class JWTTokenAutenticacaoService {
 	}
 
 	/* Token de validade de 11 dias */
-	private static final long EXPIRATION_TIME = 11 * 24 * 60 * 60 * 1000L; // 11 dias
-	private static final String TOKEN_PREFIX = "Bearer ";
-	private static final String HEADER_STRING = "Authorization";
+	private static final long EXPIRATION_TIME = 30L * 24 * 60 * 60 * 1000; // 30 dias
+	//private static final long EXPIRATION_TIME = 1;
 
 	/* Gera o token JWT para o usuario */
 	public String generationToken(String username) {
@@ -56,50 +60,51 @@ public class JWTTokenAutenticacaoService {
 	/* Adiciona o token no response */
 	public void addAuthentication(HttpServletResponse response, String username) throws Exception {
 
-		String token = TOKEN_PREFIX + generationToken(username);
+		String jwt = generationToken(username);
+		String headerValue = "Bearer " + jwt;
 
-		/*
-		 * Resposta para a tela e para o cliente, outra API, navegador, aplicativo,
-		 * javascript, outra chamada java
-		 */
 		/* Adiciona no header */
-		response.addHeader(HEADER_STRING, token);
+		response.addHeader("Authorization", headerValue);
 
-		/* Retorna no body (útil para Postman/testes */
-		response.setContentType("application/json");
-		response.getWriter().write("{\"Authorization\": \"" + token + "\"}");
+		if (!response.isCommitted()) {
+
+			response.setStatus(HttpStatus.OK.value());
+			response.setContentType("application/json;charset=UTF-8");
+
+			String json = String.format("{\"Authorization\":\"%s\",\"tokenType\":\"Bearer\",\"expiresInMs\":%d}",
+					headerValue, EXPIRATION_TIME);
+			
+			response.getWriter().write(json);
+
+		}
+
 	}
 
-	/* Retorna o usuário válido com token ou caso não seja válido retorna null */
-	public Authentication getAuthentication(HttpServletRequest request) {
+	public Authentication getAuthentication(String token) throws IOException {
 
-		String token = request.getHeader(HEADER_STRING);
+		try {
+			String username = Jwts.parserBuilder()
+					.setSigningKey(key) // sua chave HMAC
+					.build()
+					.parseClaimsJws(token)
+					.getBody()
+					.getSubject();
 
-		if (token != null && token.startsWith(TOKEN_PREFIX)) {
-
-			try {
-				String username = Jwts.parserBuilder()
-						.setSigningKey(key).build()
-						.parseClaimsJws(token.replace(TOKEN_PREFIX, "").trim())
-						.getBody()
-						.getSubject(); /* ADMIN ou Vicente */
-
-				if (username != null) {
-
-					Usuario usuario = usuarioRepository.findByUsername(username);
-
-					if (usuario != null) {
-
-						return new UsernamePasswordAuthenticationToken(usuario.getLogin(), usuario.getPassword(),
-								usuario.getAuthorities());
-					}
-				}
-
-			} catch (Exception e) {
-				// token inválido ou expirado
-				return null;
+			if (username == null) {
+				throw new BadCredentialsException("AUTH_002: Token JWT sem subject");
 			}
+
+			Usuario usuario = usuarioRepository.findByUsername(username);
+			if (usuario == null) {
+				throw new BadCredentialsException("AUTH_003: Usuário não encontrado");
+			}
+
+			return new UsernamePasswordAuthenticationToken(usuario.getLogin(), usuario.getPassword(),
+					usuario.getAuthorities());
+
+		} catch (JwtException | IllegalArgumentException e) {
+			// Assinatura inválida, token expirado, malformado, etc.
+			throw new BadCredentialsException("AUTH_004: Token JWT inválido ou expirado");
 		}
-		return null;
 	}
 }

@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -20,98 +21,96 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import br.mentoria.lojavirtual.security.handlers.JsonAccessDeniedHandler;
+import br.mentoria.lojavirtual.security.handlers.JsonAuthenticationEntryPoint;
 import br.mentoria.lojavirtual.service.ImplementacaoUserDetailsService;
+
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity(prePostEnabled = true) // agora funciona com Spring Security 6
+@EnableMethodSecurity(prePostEnabled = true)
 public class WebConfigSecurity {
 
-	private final ImplementacaoUserDetailsService implementacaoUserDetailsService;
-	private final JWTTokenAutenticacaoService jwtTokenService;
+    private final ImplementacaoUserDetailsService implementacaoUserDetailsService;
+    private final JWTTokenAutenticacaoService jwtTokenService;
+    private final JsonAuthenticationEntryPoint authenticationEntryPoint;
+    private final JsonAccessDeniedHandler accessDeniedHandler;
 
-	/* Injeta a dependência via construtor */
-	public WebConfigSecurity(ImplementacaoUserDetailsService implementacaoUserDetailsService,
-			JWTTokenAutenticacaoService jwtTokenService) {
-		this.implementacaoUserDetailsService = implementacaoUserDetailsService;
-		this.jwtTokenService = jwtTokenService;
-	}
+    public WebConfigSecurity(ImplementacaoUserDetailsService implementacaoUserDetailsService,
+                             JWTTokenAutenticacaoService jwtTokenService,
+                             JsonAuthenticationEntryPoint authenticationEntryPoint,
+                             JsonAccessDeniedHandler accessDeniedHandler) {
+        this.implementacaoUserDetailsService = implementacaoUserDetailsService;
+        this.jwtTokenService = jwtTokenService;
+        this.authenticationEntryPoint = authenticationEntryPoint;
+        this.accessDeniedHandler = accessDeniedHandler;
+    }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, AuthenticationManager authenticationManager, DaoAuthenticationProvider authProvider) throws Exception {
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            AuthenticationManager authenticationManager,
+            DaoAuthenticationProvider authProvider) throws Exception {
 
         http.csrf(csrf -> csrf.disable())
-        	// habilita suporte a CORS
-            .cors(cors -> { })
-            // Autorização
+            .cors(cors -> {})
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/", "/index", "/login").permitAll()
-                .anyRequest().authenticated()
+                    .requestMatchers("/", "/index", "/login").permitAll()
+                    .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                    .anyRequest().authenticated()
             )
-            // Stateless para JWT
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            // Exception handling simples (401/403)
             .exceptionHandling(ex -> ex
-                .authenticationEntryPoint((req, res, e) -> res.sendError(401))
-                .accessDeniedHandler((req, res, e) -> res.sendError(403))
+                    .authenticationEntryPoint(authenticationEntryPoint)
+                    .accessDeniedHandler(accessDeniedHandler)
             )
-            // Define explicitamente o provider (resolve o WARN dos dois UserDetailsService)
             .authenticationProvider(authProvider)
-
-            // Filtro de login (gera token)
-            .addFilterAfter(new JWTLoginFilter("/login", authenticationManager, jwtTokenService),
-                    UsernamePasswordAuthenticationFilter.class)
-
-            // Filtro de validação do token (para todas as requisições)
-            .addFilterBefore(new JwtApiAutenticacaoFilter(jwtTokenService),
-                    UsernamePasswordAuthenticationFilter.class)
-
-            // Logout (se exposto)
-            .logout(logout -> logout
-                .logoutUrl("/logout")
-                .logoutSuccessUrl("/index")
+            .addFilterAfter(
+                    new JWTLoginFilter("/login", authenticationManager, jwtTokenService),
+                    UsernamePasswordAuthenticationFilter.class
+            )
+            .addFilterBefore(
+                    new JwtApiAutenticacaoFilter(jwtTokenService, implementacaoUserDetailsService),
+                    UsernamePasswordAuthenticationFilter.class
             );
 
         return http.build();
     }
-	
-	
-	
-	@Bean
-	public PasswordEncoder passwordEncoder() {
 
-		return new BCryptPasswordEncoder();
-	}
-	
-
-    /* Provider explícito usando seu UserDetailsService + encoder */
     @Bean
-    public DaoAuthenticationProvider daoAuthenticationProvider(UserDetailsService userDetailsService, PasswordEncoder encoder) {
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public DaoAuthenticationProvider daoAuthenticationProvider(
+            UserDetailsService userDetailsService,
+            PasswordEncoder encoder) {
+
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
         provider.setUserDetailsService(userDetailsService);
         provider.setPasswordEncoder(encoder);
         return provider;
     }
-	
-	/* AuthenticationManager já sabe usar o UserDetailsService registrado */
-	@Bean
-	public AuthenticationManager authenticationManager(AuthenticationConfiguration auth) throws Exception {
+    
+    //APENAS ESTE BEAN
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration auth) throws Exception {
+        return auth.getAuthenticationManager();
+    }
+    
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOriginPatterns(List.of("*"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setExposedHeaders(List.of("Authorization"));
+        configuration.setAllowCredentials(true);
 
-		return auth.getAuthenticationManager();
-	}
-
-	/* Fazendo a liberação contra erros de Cors nos navegadores */
-	@Bean
-	public CorsConfigurationSource corsConfigurationSource1() {
-		CorsConfiguration configuration = new CorsConfiguration();
-		configuration.setAllowedOrigins(List.of("*")); // ou lista de domínios confiáveis
-		configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-		configuration.setAllowedHeaders(List.of("*"));
-		configuration.setAllowCredentials(true);
-
-		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-		source.registerCorsConfiguration("/**", configuration);
-		return source;
-	}
-
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
 }
+

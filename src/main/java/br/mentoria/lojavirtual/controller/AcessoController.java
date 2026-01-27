@@ -1,80 +1,64 @@
 package br.mentoria.lojavirtual.controller;
 
+import java.net.URI;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
+import org.springframework.data.rest.webmvc.ResourceNotFoundException;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.annotation.Secured;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import br.mentoria.lojavirtual.model.Acesso;
-import br.mentoria.lojavirtual.repository.AcessoRepository;
+import br.mentoria.lojavirtual.security.dto.AcessoDTO;
 import br.mentoria.lojavirtual.service.AcessoService;
+import jakarta.validation.Valid;
 
-@Controller
 @RestController
+@RequestMapping("/acessos")
 public class AcessoController {
 
-	@Autowired
-	private AcessoService acessoService;
-	
-	@Autowired
-	private AcessoRepository acessoRepository;
-	
-	@ResponseBody /*Poder dar um retorno da API*/
-	@PostMapping(value = "**/salvarAcesso") /*Mapeando a url para receber JSON*/
-	public ResponseEntity<Acesso> salvarAcesso(@RequestBody Acesso acesso) { /*Recebe o JSON e converte para Objet*/
-		
-		Acesso acessoSalvo = acessoService.save(acesso);
-		
-		return new ResponseEntity<Acesso>(acessoSalvo, HttpStatus.OK);
-	}
-	
-	//@Secured({ "ROLE_GERENTE", "ROLE_ADMIN" }) /* Apenas estes perfis poderiam deletar acesso */
-	@ResponseBody /*Poder dar um retorno da API*/
-	@PostMapping(value = "**/deleteAcesso") /*Mapeando a url para receber JSON*/
-	public ResponseEntity<?> deleteAcesso(@RequestBody Acesso acesso) { /*Recebe o JSON e converte para Objet*/
-		
-		//Acesso acessoSalvo = acessoService.save(acesso);
-		
-		acessoRepository.deleteById(acesso.getId());
-		
-		return new ResponseEntity("Acesso removido com sucesso",HttpStatus.OK);
-	}
-	
-	@ResponseBody
-	@DeleteMapping(value = "**/deleteAcessoPorId/{id}") 
-	public ResponseEntity<?> deleteAcessoPorId(@PathVariable("id") Long id) {			
-		
-		acessoRepository.deleteById(id);
-		
-		return new ResponseEntity("Acesso removido com sucesso",HttpStatus.OK);
-	}
-	
-	@ResponseBody
-	@GetMapping(value = "**/pesquisaAcessoPorId/{id}") 
-	public ResponseEntity<Acesso> pesquisaAcessoPorId(@PathVariable("id") Long id) {			
-		
-		Acesso acesso = acessoRepository.findById(id).get();
-		
-		return new ResponseEntity<Acesso>(acesso, HttpStatus.OK);
+	private final AcessoService acessoService;
+
+	public AcessoController(AcessoService acessoService) {
+		this.acessoService = acessoService;
 	}
 
-	@ResponseBody
-	@GetMapping(value = "**/pesquisaAcessoPorDescricao/{desc}") 
-	public ResponseEntity<List<Acesso>> pesquisaAcessoPorDescricao(@PathVariable("desc") String desc) {			
-		
-		List<Acesso> acesso = acessoRepository.buscaAcessoDesc(desc);
-		
-		return new ResponseEntity<List<Acesso>>(acesso, HttpStatus.OK);
-	}	
+	@ResponseBody /* Poder dar um retorno da API */
+	@PostMapping(value = "/salvarAcesso", consumes = "application/json", produces = "application/json")
+	public ResponseEntity<Acesso> salvarAcesso(@Valid @RequestBody AcessoDTO dto) {
+		Acesso salvo = acessoService.saveFromDto(dto);
+		URI location = URI.create("/loja_virtual_mentoria/acessos" + salvo.getId());
+
+		return ResponseEntity.created(location).body(salvo);
+
+	}
+
+	@DeleteMapping("/deleteAcessoPorId/{id}")
+	public ResponseEntity<String> deleteAcessoPorId(@PathVariable Long id) {
+		acessoService.deleteById(id);
+		return ResponseEntity.ok("Acesso removido com sucesso");
+	}
+
+	@GetMapping("/pesquisaAcessoPorId/{id}")
+	public ResponseEntity<Acesso> pesquisaAcessoPorId(@PathVariable Long id) {
+	    return acessoService.findById(id)
+	        .map(ResponseEntity::ok)
+	        .orElseThrow(() -> new ResourceNotFoundException("Registro não encontrado com o ID: " + id));
+	}
+
 	
+	@GetMapping("/pesquisaAcessoPorDescricao/{desc}")
+	public ResponseEntity<List<Acesso>> pesquisaAcessoPorDescricao(@PathVariable String desc) {
+		return ResponseEntity.ok(acessoService.findByDescricao(desc));
+	}
+	
+	
+	
+
 }
