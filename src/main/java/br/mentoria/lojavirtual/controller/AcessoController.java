@@ -31,7 +31,8 @@ public class AcessoController {
 
 	@ResponseBody /* Poder dar um retorno da API */
 	@PostMapping(value = "/salvarAcesso", consumes = "application/json", produces = "application/json")
-	public ResponseEntity<Acesso> salvarAcesso(@Valid @RequestBody AcessoDTO dto) {
+	public ResponseEntity<Acesso> salvarAcesso(@Valid @RequestBody AcessoDTO dto){
+						
 		Acesso salvo = acessoService.saveFromDto(dto);
 		URI location = URI.create("/loja_virtual_mentoria/acessos" + salvo.getId());
 
@@ -56,9 +57,5 @@ public class AcessoController {
 	@GetMapping("/pesquisaAcessoPorDescricao/{desc}")
 	public ResponseEntity<List<Acesso>> pesquisaAcessoPorDescricao(@PathVariable String desc) {
 		return ResponseEntity.ok(acessoService.findByDescricao(desc));
-	}
-	
-	
-	
-
+	}	
 }
